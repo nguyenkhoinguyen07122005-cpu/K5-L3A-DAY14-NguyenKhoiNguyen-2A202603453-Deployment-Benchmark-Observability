@@ -1,0 +1,116 @@
+# Chạy các bài cần Docker trên Linux runner (máy làm bài là Windows, chưa có Docker):
+#   • Part 2  — build image develop/production, đo kích thước, gọi container, test stack qua Nginx
+#   • Part 5.5 — scale 3 instance + test_stateless.py
+#   • Part 6  — check_production_ready.py bản đầy đủ (Docker + SIGTERM)
+# Output được commit vào evidence/ci_*.txt để dán vào MISSION_ANSWERS.md.
+name: docker-evidence
+on:
+  workflow_dispatch:
+  push:
+    paths: [".github/workflows/docker-evidence.yml"]
+
+permissions:
+  contents: write
+
+jobs:
+  evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+
+      - name: Part 2 — build images + size
+        continue-on-error: true
+        run: |
+          mkdir -p evidence
+          {
+            echo "# Part 2 — chạy trên GitHub Actions ubuntu-latest, $(docker --version)"
+            echo '$ docker build -f 02-docker/develop/Dockerfile -t my-agent:develop .'
+            docker build -q -f 02-docker/develop/Dockerfile -t my-agent:develop .
+            echo '$ docker build -f 02-docker/production/Dockerfile -t my-agent:advanced .'
+            docker build -q -f 02-docker/production/Dockerfile -t my-agent:advanced .
+            echo
+            echo '$ docker images | grep my-agent'
+            docker images | grep my-agent
+            echo
+            echo '# kích thước chính xác (bytes):'
+            for t in develop advanced; do echo "my-agent:$t $(docker image inspect -f '{{.Size}}' my-agent:$t)"; done
+          } 2>&1 | tee evidence/ci_part2_docker.txt
+
+      - name: Part 2 — run develop container
+        continue-on-error: true
+        run: |
+          {
+            echo
+            echo '$ docker run -d -p 8000:8000 my-agent:develop'
+            docker run -d --name dev -p 8000:8000 my-agent:develop
+            sleep 6
+            echo '$ curl -i -X POST "http://localhost:8000/ask?question=What%20is%20Docker"'
+            curl -s -i -X POST "http://localhost:8000/ask?question=What%20is%20Docker"; echo
+            echo '$ curl http://localhost:8000/health'
+            curl -s http://localhost:8000/health; echo
+            docker rm -f dev > /dev/null
+          } 2>&1 | tee -a evidence/ci_part2_docker.txt
+
+      - name: Part 2.4 — compose stack via Nginx
+        continue-on-error: true
+        working-directory: 02-docker/production
+        run: |
+          touch .env.local
+          {
+            echo
+            echo '$ cd 02-docker/production && touch .env.local && docker compose -p k5-day14-docker up -d --build'
+            docker compose -p k5-day14-docker up -d --build 2>&1 | tail -15
+            sleep 25
+            echo '$ docker compose -p k5-day14-docker ps'
+            docker compose -p k5-day14-docker ps
+            echo '$ curl -i http://localhost/health'
+            curl -s -i http://localhost/health; echo
+            echo '$ curl -i -X POST http://localhost/ask -H "Content-Type: application/json" -d {"question": "Explain microservices"}'
+            curl -s -i -X POST http://localhost/ask -H "Content-Type: application/json" -d '{"question": "Explain microservices"}'; echo
+          } 2>&1 | tee -a ../../evidence/ci_part2_docker.txt
+          docker compose -p k5-day14-docker down -v
+
+      - name: Part 5.4/5.5 — scale 3 + test_stateless
+        continue-on-error: true
+        working-directory: 05-scaling-reliability/production
+        run: |
+          touch .env.local
+          {
+            echo "# Part 5 — GitHub Actions ubuntu-latest"
+            echo '$ docker compose -p k5-day14-scaling up -d --build --scale agent=3'
+            docker compose -p k5-day14-scaling up -d --build --scale agent=3 2>&1 | tail -10
+            sleep 25
+            echo '$ docker compose -p k5-day14-scaling ps'
+            docker compose -p k5-day14-scaling ps
+            echo
+            echo '$ python test_stateless.py'
+            python test_stateless.py
+            echo
+            echo '# 10 request /health qua Nginx — phân tán giữa các instance:'
+            for i in $(seq 1 10); do curl -s http://localhost:8080/health | python -c "import sys,json; d=json.load(sys.stdin); print(d.get('instance_id', d))"; done
+            echo
+            echo '# Kill 1 instance rồi gọi tiếp (Exercise 5.5 gốc):'
+            docker kill "$(docker compose -p k5-day14-scaling ps -q agent | head -1)" > /dev/null && echo "killed 1 agent container"
+            sleep 3
+            python test_stateless.py | tail -8
+          } 2>&1 | tee ../../evidence/ci_part5_scaling.txt
+          docker compose -p k5-day14-scaling down -v
+
+      - name: Part 6 — check_production_ready.py (full)
+        continue-on-error: true
+        working-directory: 06-lab-complete
+        run: |
+          pip install -q -r requirements.txt
+          python check_production_ready.py 2>&1 | tee ../evidence/ci_check_production_ready_full.txt
+
+      - name: Commit evidence
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add evidence/ci_*.txt
+          git commit -m "CI evidence: Part 2, Part 5, full production check" || echo "nothing to commit"
+          git push

@@ -1,0 +1,33 @@
+$ cd 01-localhost-vs-production/develop && PYTHONIOENCODING=utf-8 python app.py
+
+$ curl -i -X POST "http://localhost:8000/ask?question=Hello"
+HTTP/1.1 200 OK
+date: Wed, 25 Nov 2026 07:49:23 GMT
+server: uvicorn
+content-length: 126
+content-type: application/json
+
+{"answer":"Đây là câu trả lời từ AI agent (mock). Trong production, đây sẽ là response từ OpenAI/Anthropic."}
+
+$ curl -i -X POST http://localhost:8000/ask -H "Content-Type: application/json" -d '{"question":"Hello"}'   # gửi JSON → 422 (README K5 lưu ý 3)
+HTTP/1.1 422 Unprocessable Entity
+date: Wed, 25 Nov 2026 07:49:24 GMT
+server: uvicorn
+content-length: 94
+content-type: application/json
+
+{"detail":[{"type":"missing","loc":["query","question"],"msg":"Field required","input":null}]}
+
+$ curl -i http://localhost:8000/health
+HTTP/1.1 404 Not Found
+date: Wed, 25 Nov 2026 07:49:24 GMT
+server: uvicorn
+content-length: 22
+content-type: application/json
+
+{"detail":"Not Found"}
+
+--- server console (print) ---
+[DEBUG] Got question: Hello
+[DEBUG] Using key: sk-hardcoded-fake-key-never-do-this
+[DEBUG] Response: Đây là câu trả lời từ AI agent (mock). Trong production, đây sẽ là response từ OpenAI/Anthropic.
