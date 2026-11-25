@@ -3,16 +3,18 @@
 > Service deploy là **agent Part 6** trong thư mục `06-lab-complete/`.
 
 ## Public URL
-https://<your-agent>.up.railway.app
+https://<your-agent>.onrender.com
 
 ## Platform
-Railway (build bằng `Dockerfile`, cấu hình trong `railway.toml`). Phương án thay thế: Render Blueprint (`render.yaml`, gồm web service + Redis).
+Render, gói Free. Deploy bằng Blueprint `06-lab-complete/render.yaml`: web service Docker (`rootDir: 06-lab-complete`) + Render Key Value (Redis-compatible), cả hai cùng region, nối qua mạng nội bộ.
+
+> Free web service tự tắt sau 15 phút không có request. Request đầu tiên sau đó mất khoảng 1 phút để khởi động lại, nên trước khi kiểm tra hãy mở `/health` một lần cho service "thức dậy".
 
 ## Test Commands
 
 ### Tự kiểm CP6 (chỉ in mã HTTP, chụp ảnh không lộ key)
 ```bash
-BASE=https://<your-agent>.up.railway.app
+BASE=https://<your-agent>.onrender.com
 curl -sS -o /dev/null -w '%{http_code}
 ' "$BASE/health"     # 200
 curl -sS -o /dev/null -w '%{http_code}
@@ -26,26 +28,26 @@ Kết quả: ⏳ `200 / 200 / 401 / 200`
 
 ### Health Check
 ```bash
-curl https://<your-agent>.up.railway.app/health
+curl https://<your-agent>.onrender.com/health
 # Expected: {"status": "ok", ...}
 ```
 
 ### Readiness (Redis)
 ```bash
-curl https://<your-agent>.up.railway.app/ready
+curl https://<your-agent>.onrender.com/ready
 # Expected: {"status": "ready", "redis": "ok"}
 ```
 
 ### Authentication required
 ```bash
-curl -X POST https://<your-agent>.up.railway.app/ask \
+curl -X POST https://<your-agent>.onrender.com/ask \
   -H "Content-Type: application/json" -d '{"question": "Hello"}'
 # Expected: 401
 ```
 
 ### API Test (with authentication)
 ```bash
-curl -X POST https://<your-agent>.up.railway.app/ask \
+curl -X POST https://<your-agent>.onrender.com/ask \
   -H "X-API-Key: YOUR_KEY" \
   -H "Content-Type: application/json" \
   -d '{"user_id": "test", "question": "Hello"}'
@@ -55,7 +57,7 @@ curl -X POST https://<your-agent>.up.railway.app/ask \
 ### Rate limiting (10 req/phút)
 ```bash
 for i in $(seq 1 15); do
-  curl -s -o /dev/null -w "%{http_code}\n" -X POST https://<your-agent>.up.railway.app/ask \
+  curl -s -o /dev/null -w "%{http_code}\n" -X POST https://<your-agent>.onrender.com/ask \
     -H "X-API-Key: YOUR_KEY" -H "Content-Type: application/json" \
     -d '{"user_id":"test","question":"test"}'
 done
@@ -65,15 +67,14 @@ done
 ### Grader against public URL
 ```bash
 cd 06-lab-complete
-python check_production_ready.py --public-url https://<your-agent>.up.railway.app
+python check_production_ready.py --public-url https://<your-agent>.onrender.com
 ```
 
 ## Environment Variables Set
-- `PORT` (Railway tự cấp)
-- `REDIS_URL` (từ Redis plugin của Railway: `${{Redis.REDIS_URL}}`)
-- `AGENT_API_KEY` (secret, sinh bằng `python -c "import secrets; print(secrets.token_urlsafe(32))"`)
+- `PORT` (Render tự cấp, Dockerfile dùng `${PORT:-8000}`)
+- `REDIS_URL` (Blueprint tự lấy `connectionString` của Key Value `agent-redis`)
+- `AGENT_API_KEY` (Render tự sinh bằng `generateValue: true`; xem giá trị ở Dashboard → service → Environment)
 - `ENVIRONMENT=production`
-- `LOG_LEVEL=INFO`
 - `RATE_LIMIT_PER_MINUTE=10`
 - `DAILY_BUDGET_USD=1.0`, `MONTHLY_BUDGET_USD=10.0`
 

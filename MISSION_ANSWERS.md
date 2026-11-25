@@ -148,7 +148,7 @@ Server: nginx
 
 Theo CHECKPOINTS CP6, lớp K5 deploy luôn **agent Part 6** (`06-lab-complete/`, dùng `railway.toml` / `render.yaml` của bài), không deploy app mẫu.
 
-- URL: ⏳ `https://<your-agent>.up.railway.app` (chi tiết trong [`DEPLOYMENT.md`](DEPLOYMENT.md))
+- URL: ⏳ `https://<your-agent>.onrender.com` (chi tiết trong [`DEPLOYMENT.md`](DEPLOYMENT.md))
 - Kết quả 4 lệnh tự kiểm CP6: ⏳ `/health` 200 · `/ready` 200 · `/ask` không key 401 · `/ask` có key 200
 - Screenshot: `screenshots/dashboard.png`, `screenshots/running.png`, `screenshots/test.png`
 

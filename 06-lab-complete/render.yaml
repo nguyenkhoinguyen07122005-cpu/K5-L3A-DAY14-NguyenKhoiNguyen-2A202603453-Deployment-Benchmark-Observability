@@ -1,10 +1,12 @@
-# Render Blueprint — New → Blueprint → chọn repo, Blueprint file path: 06-lab-complete/render.yaml
+# Render Blueprint — Dashboard → New → Blueprint → chọn repo
+#   Blueprint Path: 06-lab-complete/render.yaml   (file không nằm ở gốc repo)
 services:
   - type: web
     name: production-ai-agent
     runtime: docker
-    dockerfilePath: ./06-lab-complete/Dockerfile   # đường dẫn tính từ gốc repo (bản fork)
-    dockerContext: ./06-lab-complete
+    rootDir: 06-lab-complete          # code Part 6 nằm trong thư mục con của bản fork
+    dockerfilePath: ./Dockerfile      # tính từ rootDir
+    dockerContext: .
     plan: free
     healthCheckPath: /health
     autoDeploy: true
@@ -15,7 +17,7 @@ services:
         generateValue: true          # Render tự sinh secret, không ghi thẳng giá trị
       - key: REDIS_URL
         fromService:
-          type: redis
+          type: keyvalue
           name: agent-redis
           property: connectionString
       - key: RATE_LIMIT_PER_MINUTE
@@ -25,8 +27,8 @@ services:
       - key: MONTHLY_BUDGET_USD
         value: "10.0"
 
-  - type: redis
+  - type: keyvalue                   # Render Key Value (Redis-compatible; "redis" là tên cũ)
     name: agent-redis
     plan: free
-    ipAllowList: []                  # chỉ cho phép kết nối nội bộ từ service trên Render
+    ipAllowList: []                  # chặn kết nối từ internet, chỉ dùng mạng nội bộ của Render
     maxmemoryPolicy: allkeys-lru
