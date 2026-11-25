@@ -1,6 +1,6 @@
 # Deployment Information
 
-> ⏳ Điền URL thật sau khi deploy (xem `HUONG_DAN_NOP_BAI.md`, bước 4). Service deploy là **agent Part 6** trong thư mục `06-lab-complete/`.
+> Service deploy là **agent Part 6** trong thư mục `06-lab-complete/`.
 
 ## Public URL
 https://<your-agent>.up.railway.app

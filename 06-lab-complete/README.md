@@ -1,6 +1,6 @@
 # Part 6 — Final Project: Production-ready AI Agent
 
-> **Bài làm đã hoàn thành.** Tài liệu nộp: [MISSION_ANSWERS.md](../MISSION_ANSWERS.md) · [DEPLOYMENT.md](../DEPLOYMENT.md) · [BENCHMARK_REPORT.md](../BENCHMARK_REPORT.md) (ở gốc repo) · hướng dẫn nộp: [HUONG_DAN_NOP_BAI.md](../HUONG_DAN_NOP_BAI.md)
+> Bài nộp ở gốc repo: [MISSION_ANSWERS.md](../MISSION_ANSWERS.md) · [DEPLOYMENT.md](../DEPLOYMENT.md) · [BENCHMARK_REPORT.md](../BENCHMARK_REPORT.md)
 >
 > **Setup nhanh**
 > ```bash
