@@ -24,13 +24,27 @@ Output gốc của các lần chạy thử nằm trong thư mục [`evidence/`](
 
 ### Exercise 1.2: Chạy bản develop
 
-Bản develop nhận `question` qua **query string** (README K5 lưu ý 3). Gọi bằng `curl -X POST "http://localhost:8000/ask?question=Hello"`.
-- Trên Python Windows: **HTTP 500**, do `print()` tiếng Việt gây `UnicodeEncodeError` (anti-pattern số 3 ở trên).
-- ⏳ Chạy lại trong WSL2 và dán output 200 vào đây: `cd 01-localhost-vs-production/develop && pip install -r requirements.txt && python app.py`
+Bản develop nhận `question` qua **query string** (README K5 lưu ý 3). Output đầy đủ: [`evidence/part1_develop_run.txt`](evidence/part1_develop_run.txt).
 
 ```text
-⏳ (dán output curl)
+$ cd 01-localhost-vs-production/develop && PYTHONIOENCODING=utf-8 python app.py
+$ curl -i -X POST "http://localhost:8000/ask?question=Hello"
+HTTP/1.1 200 OK
+{"answer":"Đây là câu trả lời từ AI agent (mock). Trong production, đây sẽ là response từ OpenAI/Anthropic."}
+
+$ curl -i -X POST http://localhost:8000/ask -H "Content-Type: application/json" -d '{"question":"Hello"}'
+HTTP/1.1 422 Unprocessable Entity
+{"detail":[{"type":"missing","loc":["query","question"],"msg":"Field required","input":null}]}
+
+$ curl -i http://localhost:8000/health
+HTTP/1.1 404 Not Found
+
+--- console của server ---
+[DEBUG] Got question: Hello
+[DEBUG] Using key: sk-hardcoded-fake-key-never-do-this     ← secret bị in ra log
 ```
+
+**Quan sát:** app chạy được nhưng chưa sẵn sàng cho production: secret lộ trong log, không có `/health` (404), input không có model validate. Khi chạy với encoding mặc định của Windows (cp1252, không đặt `PYTHONIOENCODING`), chính lệnh `print()` câu trả lời tiếng Việt làm request trả **500**. Môi trường khác nhau là app hỏng: đúng câu "works on my machine".
 
 ### Exercise 1.3: Comparison table
 
@@ -58,10 +72,16 @@ Bản develop nhận `question` qua **query string** (README K5 lưu ý 3). Gọ
 
 ### Exercise 2.2: Build và chạy container develop
 
+Chạy trên GitHub Actions (`ubuntu-latest`, Docker 29.4.2) vì máy làm bài là Windows chưa cài Docker. Output đầy đủ: [`evidence/ci_part2_docker.txt`](evidence/ci_part2_docker.txt).
+
 ```text
-⏳ docker build -f 02-docker/develop/Dockerfile -t my-agent:develop .   (chạy từ gốc repo)
-⏳ docker run -p 8000:8000 my-agent:develop
-⏳ curl -X POST "http://localhost:8000/ask?question=What%20is%20Docker"   → dán output
+$ docker build -f 02-docker/develop/Dockerfile -t my-agent:develop .     (từ gốc repo)
+$ docker run -d -p 8000:8000 my-agent:develop
+$ curl -i -X POST "http://localhost:8000/ask?question=What%20is%20Docker"
+HTTP/1.1 200 OK
+{"answer":"Container là cách đóng gói app để chạy ở mọi nơi. Build once, run anywhere!"}
+$ curl http://localhost:8000/health
+{"status":"ok","uptime_seconds":5.9,"container":true}
 ```
 
 ### Exercise 2.3: Multi-stage build (`02-docker/production/Dockerfile`)
@@ -70,17 +90,22 @@ Bản develop nhận `question` qua **query string** (README K5 lưu ý 3). Gọ
 - **Stage 2 (runtime):** `python:3.11-slim` sạch, tạo user non-root `appuser`, chỉ `COPY --from=builder /root/.local` (packages đã cài) và source code, có `HEALTHCHECK`, chạy `uvicorn ... --workers 2`.
 - **Vì sao image nhỏ hơn:** image cuối không chứa gcc, header, apt cache, pip cache hay các layer trung gian. Base `slim` cũng nhỏ hơn base đầy đủ khoảng 900 MB.
 
-**Image size comparison** *(máy làm bài chưa cài Docker. Chạy 2 lệnh dưới trên máy có Docker rồi điền số)*:
+**Image size comparison** (đo bằng `docker images`, xem `evidence/ci_part2_docker.txt`):
 
-```bash
-docker build -f 02-docker/develop/Dockerfile -t my-agent:develop .
-docker build -f 02-docker/production/Dockerfile -t my-agent:advanced .
-docker images | grep my-agent
+```text
+$ docker images | grep my-agent
+my-agent:advanced    58fdcd07419b    240MB    57.4MB
+my-agent:develop     2136076fdf8b   1.67GB     426MB
+                                  (disk usage) (content size)
 ```
 
-- Develop: `____` MB (base `python:3.11` thường khoảng 1.0–1.1 GB)
-- Production: `____` MB (base `python:3.11-slim` thường khoảng 150–250 MB)
-- Difference: `____` % (`(develop - production) / develop × 100`)
+| Image | Disk usage (giải nén) | Content size (nén, `docker image inspect .Size`) |
+|---|---|---|
+| Develop (`python:3.11`, single-stage) | **1.67 GB** | 426 MB (426,320,351 bytes) |
+| Production (`python:3.11-slim`, multi-stage) | **240 MB** | 57.4 MB (57,408,736 bytes) |
+| Chênh lệch | **giảm ≈ 85.6%** ((1670 − 240) / 1670) | giảm ≈ 86.5% |
+
+Image production nhỏ hơn khoảng 7 lần, chủ yếu nhờ base `slim` (bỏ compiler, header, docs của Debian đầy đủ) và việc stage runtime không mang theo gcc, libpq-dev hay pip cache của stage builder.
 
 ### Exercise 2.4: Docker Compose stack (`02-docker/production/docker-compose.yml`)
 
@@ -91,7 +116,28 @@ Client ──:80/:443──▶ nginx ──▶ agent (FastAPI, 2 workers) ──
 ```
 
 - **Services:** `agent`, `redis`, `qdrant`, `nginx`.
-- **Test qua Nginx** ⏳: `cd 02-docker/production && touch .env.local && docker compose up -d --build`, rồi `curl http://localhost/health` và `curl -X POST http://localhost/ask -H "Content-Type: application/json" -d '{"question": "Explain microservices"}'` (bản production nhận JSON), dán output vào đây.
+- **Test qua Nginx** (`cd 02-docker/production && touch .env.local && docker compose -p k5-day14-docker up -d --build`):
+
+```text
+NAME                       SERVICE   STATUS                    PORTS
+k5-day14-docker-agent-1    agent     Up 25 seconds (healthy)   8000/tcp
+k5-day14-docker-nginx-1    nginx     Up 25 seconds             0.0.0.0:80->80/tcp, 0.0.0.0:443->443/tcp
+k5-day14-docker-qdrant-1   qdrant    Up 36 seconds (healthy)   6333-6334/tcp
+k5-day14-docker-redis-1    redis     Up 36 seconds (healthy)   6379/tcp
+
+$ curl -i http://localhost/health
+HTTP/1.1 200 OK
+Server: nginx
+X-Frame-Options: DENY
+{"status":"ok","uptime_seconds":24.1,"version":"2.0.0",...}
+
+$ curl -i -X POST http://localhost/ask -H "Content-Type: application/json" -d '{"question": "Explain microservices"}'
+HTTP/1.1 200 OK
+Server: nginx
+{"answer":"Tôi là AI agent được deploy lên cloud. Câu hỏi của bạn đã được nhận."}
+```
+
+  Thứ tự khởi động đúng như `depends_on: condition: service_healthy`: redis và qdrant healthy trước, rồi mới tới agent, cuối cùng nginx. Chỉ nginx publish port ra host. Header `Server: nginx` và `X-Frame-Options` cho thấy request đã đi qua reverse proxy.
 - **Giao tiếp:** qua Docker DNS trong network `internal` bằng tên service (`redis://redis:6379/0`, `http://qdrant:6333`). Agent dùng `depends_on: condition: service_healthy` nên chỉ start khi Redis/Qdrant đã healthy. Chỉ Nginx publish port ra host, còn agent, redis, qdrant không lộ ra ngoài.
 
 ---
@@ -222,19 +268,40 @@ cd 06-lab-complete
 docker compose -f docker-compose.yml -f docker-compose.scale.yml up --build --scale agent=3
 ```
 
-**5.5 Test stateless** *(⏳ cần chạy lại bằng Docker theo README K5 lưu ý 7: `cd 05-scaling-reliability/production && touch .env.local && docker compose -p k5-day14-scaling up -d --build --scale agent=3 && python test_stateless.py`, rồi dán output vào đây)*. Trước đó, khi máy chưa có Docker, đã mô phỏng bằng 2 instance (`:8051`, `:8052`) dùng chung 1 Redis và gửi request luân phiên:
+**5.4 + 5.5 Load balancing & test stateless** (GitHub Actions, output đầy đủ: [`evidence/ci_part5_scaling.txt`](evidence/ci_part5_scaling.txt)):
 
 ```text
-request 1 → :8051 served_by=instance-8051 storage=redis turn=2
-request 2 → :8052 served_by=instance-8052 storage=redis turn=3
-request 3 → :8051 served_by=instance-8051 storage=redis turn=4
-request 4 → :8052 served_by=instance-8052 storage=redis turn=5
-request 5 → :8051 served_by=instance-8051 storage=redis turn=6
-History đọc từ instance khác: 10 messages
-sau khi kill :8051 → served_by=instance-8052, history còn 12 messages ✅ (state không mất)
+$ cd 05-scaling-reliability/production && touch .env.local
+$ docker compose -p k5-day14-scaling up -d --build --scale agent=3
+k5-day14-scaling-agent-1   Up 25 seconds (healthy)
+k5-day14-scaling-agent-2   Up 25 seconds (healthy)
+k5-day14-scaling-agent-3   Up 25 seconds (healthy)
+k5-day14-scaling-nginx-1   0.0.0.0:8080->80/tcp
+k5-day14-scaling-redis-1   Up 36 seconds (healthy)
+
+$ python test_stateless.py
+Request 1: [instance-a560a7]   Q: What is Docker?
+Request 2: [instance-d69e46]   Q: Why do we need containers?
+Request 3: [instance-19e4bc]   Q: What is Kubernetes?
+Request 4: [instance-a560a7]   Q: How does load balancing work?
+Request 5: [instance-d69e46]   Q: What is Redis used for?
+Total requests: 5
+Instances used: {'instance-19e4bc', 'instance-a560a7', 'instance-d69e46'}
+✅ All requests served despite different instances!
+--- Conversation History ---
+Total messages: 10
+✅ Session history preserved across all instances via Redis!
+
+# 10 request /health qua Nginx:
+a560a7 → d69e46 → 19e4bc → a560a7 → d69e46 → 19e4bc → a560a7 → d69e46 → 19e4bc → a560a7   (round-robin)
+
+# docker kill 1 agent rồi chạy lại test_stateless.py → vẫn trả lời đủ, history vẫn đọc được:
+✅ Session history preserved across all instances via Redis!
 ```
 
-Hai instance khác nhau cùng đọc và ghi một session. Kill một instance thì conversation vẫn còn, vì state nằm ở Redis chứ không nằm trong process.
+**Giải thích:** 5 request của **cùng một session** lần lượt rơi vào cả 3 instance (Nginx chia round-robin), nhưng history vẫn đủ 10 tin nhắn (5 câu hỏi + 5 trả lời). Lý do là không instance nào giữ session trong RAM: tất cả đọc và ghi `session:{id}` ở Redis. Kill một container thì Nginx chuyển request sang 2 instance còn lại và session không mất. Nếu lưu history trong dict của process thì mỗi instance chỉ thấy 1/3 cuộc hội thoại, và container chết là mất luôn phần của nó.
+
+Trước khi có Docker, đã thử nghiệm tương tự trên Windows: 2 instance uvicorn dùng chung 1 Redis, gửi request luân phiên, kill 1 instance thì history vẫn còn ([`evidence/part5_test_output.txt`](evidence/part5_test_output.txt)).
 
 ---
 
@@ -242,11 +309,11 @@ Hai instance khác nhau cùng đọc và ghi một session. Kill một instance 
 
 ### 📋 Checklist Deliverable
 
-Chạy trên Windows (không có Docker, Windows không gửi được SIGTERM) bằng `--skip-docker`: **38/38 checks passed**, 10/12 tiêu chí ✅. 2 tiêu chí còn lại ⚠️ (chưa kiểm tra được, chứ không phải ❌) vì cần Docker/Linux. Output đầy đủ: [`evidence/check_production_ready_windows_skip-docker.txt`](evidence/check_production_ready_windows_skip-docker.txt).
+Chạy **bản đầy đủ** (có Docker + SIGTERM) trong `06-lab-complete/` trên GitHub Actions `ubuntu-latest`. Output đầy đủ: [`evidence/ci_check_production_ready_full.txt`](evidence/ci_check_production_ready_full.txt).
 
 ```text
   📋 Checklist Deliverable
-     ⚠️  Dockerfile (multi-stage, < 500 MB)
+     ✅ Dockerfile (multi-stage, < 500 MB)
      ✅ docker-compose.yml (agent + redis)
      ✅ .dockerignore
      ✅ Health check endpoint (GET /health)
@@ -256,13 +323,24 @@ Chạy trên Windows (không có Docker, Windows không gửi được SIGTERM) 
      ✅ Cost guard
      ✅ Config từ environment variables
      ✅ Structured logging
-     ⚠️  Graceful shutdown
+     ✅ Graceful shutdown
      ✅ Public URL ready (Railway / Render config)
-  Result: 10/12 tiêu chí đạt · 38/38 checks passed
+----------------------------------------------------------------
+  Result: 12/12 tiêu chí đạt · 43/43 checks passed
+  🎉 PASS 12/12 — PRODUCTION READY! Deploy nào!
 ```
 
-> **TODO trước khi nộp:** trong **WSL2** + Docker Desktop, `cd 06-lab-complete && python check_production_ready.py` (README K5 lưu ý 2: Python Windows không bao giờ đạt 12/12), **hoặc** xem log workflow GitHub Actions `production-ready` (Linux có Docker). Sau đó dán phần "📋 Checklist Deliverable" với kết quả `PASS 12/12` thay cho khối trên.
+Một số dòng chi tiết đáng chú ý:
 
+```text
+✅ Docker: build image thành công — 14s
+✅ Docker: image < 500 MB — 63 MB
+✅ Docker: container chạy được, GET /health → 200
+✅ Khi chạy: SIGTERM lúc đang có request → request vẫn 200, process tự thoát — exit code 0
+✅ Docker: `docker stop` tắt êm (exit code 0, < 10s) — exit code 0, 0.6s
+```
+
+Trên Windows (`--skip-docker`, [`evidence/check_production_ready_windows_skip-docker.txt`](evidence/check_production_ready_windows_skip-docker.txt)) chỉ được 10/12 vì Python Windows không gửi được SIGTERM và máy không có Docker, đúng như README K5 lưu ý 2.
 
 ---
 
@@ -274,8 +352,9 @@ Chạy trên Windows (không có Docker, Windows không gửi được SIGTERM) 
 |---|---|---|---|
 | 1 | Đọc toàn bộ repo (CODE_LAB, checklist, script chấm, skeleton 06) và giải thích yêu cầu | Tóm tắt 12 tiêu chí, "hợp đồng" của `check_production_ready.py`, các TODO | Đối chiếu với mục *Script chấm dựa vào…* trong `06-lab-complete/README.md` |
 | 2 | Viết code Part 6 (`config.py`, `auth.py`, `redis_client.py`, `rate_limiter.py`, `cost_guard.py`, `main.py`) | Code dùng Redis sorted set (MULTI/EXEC) cho rate limit, `INCRBYFLOAT` theo ngày/tháng cho cost guard, `JsonFormatter`, lifespan | Chạy `check_production_ready.py --skip-docker`: 38/38 checks ✅. Gọi tay `/ask`, `/history`, 401 thiếu key. Lưu ý AI nêu: tự đăng ký SIGTERM handler sẽ làm uvicorn không tắt, nên chỉ dùng lifespan |
-| 3 | Viết Dockerfile multi-stage, `.dockerignore`, compose, `.env.example`, `railway.toml`, `render.yaml` | Builder tạo venv `/opt/venv`, runtime slim + user non-root + HEALTHCHECK bằng urllib, `exec uvicorn` để làm PID 1 | Chạy thử lệnh HEALTHCHECK ngoài Docker. ⏳ Build image + `docker stop` cần kiểm bằng bản chấm đầy đủ (WSL2/Docker) |
+| 3 | Viết Dockerfile multi-stage, `.dockerignore`, compose, `.env.example`, `railway.toml`, `render.yaml` | Builder tạo venv `/opt/venv`, runtime slim + user non-root + HEALTHCHECK bằng urllib, `exec uvicorn` để làm PID 1 | Chạy thử lệnh HEALTHCHECK ngoài Docker. Bản chấm đầy đủ trên Linux + Docker: build 14s, image 63 MB, `docker stop` exit 0 trong 0.6s |
 | 4 | Không có Docker/Redis trên Windows: chạy script chấm thế nào? | Dùng `fakeredis` TCP server tạm thời + script bọc thay hàm ping (script chấm **không bị sửa**) | Chỉ dùng để thử local. Kết quả chính thức phải từ bản chạy đầy đủ |
 | 5 | Chạy Part 1, 4, 5 và thu output | Chạy các app mẫu, ghi output vào `evidence/` | Phát hiện bản develop Part 1 lỗi 500 trên Windows (`print` tiếng Việt), `/auth/token` dùng `student/demo123`. Đã che token JWT |
 | 6 | Chạy Part 7 Bước 1 (load test, MOCK_SLOW_RATE, eval) | Chạy lệnh như CP7, lưu `reports/*.json`. Thêm 2 entry HPA/JWT vào `KNOWLEDGE_BASE`, thêm metric `agent_question_length_chars` | Eval cuối 23/23, 0 regression. Mọi số trong `BENCHMARK_REPORT.md` lấy từ file JSON |
-| 7 | Viết nháp `MISSION_ANSWERS.md`, `BENCHMARK_REPORT.md`, `DEPLOYMENT.md`, workflow CI | Nháp câu trả lời + phân tích | ⏳ Tự đọc lại, sửa theo hiểu biết của mình; điền các mục cần Docker/cloud bằng số tự đo |
+| 7 | Máy không có Docker: làm Part 2, 5.5 và bản chấm đầy đủ ở đâu? | Viết workflow `.github/workflows/docker-evidence.yml` chạy đúng các lệnh của CODE_LAB/README K5 trên GitHub Actions, commit output vào `evidence/ci_*.txt` | Đọc output thật: PASS 12/12, image 1.67 GB → 240 MB, test_stateless dùng 3 instance. Số trong bài chép từ các file đó |
+| 8 | Viết nháp `MISSION_ANSWERS.md`, `BENCHMARK_REPORT.md`, `DEPLOYMENT.md`, workflow CI | Nháp câu trả lời + phân tích | ⏳ Tự đọc lại, sửa theo hiểu biết của mình; điền các mục cần Docker/cloud bằng số tự đo |
