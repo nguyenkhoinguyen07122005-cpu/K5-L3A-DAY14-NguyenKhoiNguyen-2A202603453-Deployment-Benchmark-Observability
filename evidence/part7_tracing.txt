@@ -1,0 +1,20 @@
+# Exercise 7.5 — Jaeger API v3 (/api/v3/traces/<id>), 30 users Locust, cấu hình mặc định
+# Trace chậm nhất tìm bằng 'Longest First' (16:28–16:29) + 1 trace lỗi
+
+trace_id=169527521c0a402e401a0d6c795b59fe  start=16:28:39  total=1714.2 ms
+   POST /ask                      1714.2 ms (100.0%)   
+   agent.run                      1711.7 ms ( 99.9%)   
+   agent.retrieve_context           23.3 ms (  1.4%)   
+   chat mock-llm-small            1687.9 ms ( 98.5%)  {'gen_ai.operation.name': 'chat', 'gen_ai.provider.name': 'mock', 'gen_ai.request.model': 'mock-llm-small', 'gen_ai.usage.input_tokens': '76', 'gen_ai.usage.output_tokens': '39'} 
+
+trace_id=03d842c19e4574c5b0d70e831ea7c868  start=16:29:22  total=89.9 ms
+   POST /ask                        89.9 ms (100.0%) status=ERROR  
+   agent.run                        88.3 ms ( 98.2%) status=ERROR  [('exception', ['Upstream LLM error: 503 Service Unavailable (mock)'])]
+   agent.retrieve_context           15.4 ms ( 17.1%)   
+   chat mock-llm-small              72.6 ms ( 80.8%) status=ERROR {'gen_ai.operation.name': 'chat', 'gen_ai.provider.name': 'mock', 'gen_ai.request.model': 'mock-llm-small'} [('exception', ['Upstream LLM error: 503 Service Unavailable (mock)'])]
+
+# docker compose -p k5-day14-observability logs agent | grep <trace_id>
+{"ts": "2026-11-25T09:28:41.610383+00:00", "level": "INFO", "service": "observable-agent", "instance": "fb35499055c0", "event": "llm_call", "trace_id": "169527521c0a402e401a0d6c795b59fe", "span_id": "5fcbc4fca052983f", "request_id": "9b176f2fb7a0", "model": "mock-llm-small", "agent_version": "v2", "input_tokens": 76, "output_tokens": 39, "cost_usd": 3.5e-05, "llm_ms": 1687.5}
+{"ts": "2026-11-25T09:28:41.610646+00:00", "level": "INFO", "service": "observable-agent", "instance": "fb35499055c0", "event": "http_request", "trace_id": "169527521c0a402e401a0d6c795b59fe", "span_id": "5fcbc4fca052983f", "request_id": "9b176f2fb7a0", "method": "POST", "route": "/ask", "status": 200, "ms": 1713.6}
+{"ts": "2026-11-25T09:29:22.854612+00:00", "level": "INFO", "service": "observable-agent", "instance": "fb35499055c0", "event": "llm_error", "trace_id": "03d842c19e4574c5b0d70e831ea7c868", "span_id": "b29b07a2cf7a5154", "request_id": "11fd3479794e", "error": "Upstream LLM error: 503 Service Unavailable (mock)"}
+{"ts": "2026-11-25T09:29:22.854782+00:00", "level": "INFO", "service": "observable-agent", "instance": "fb35499055c0", "event": "http_request", "trace_id": "03d842c19e4574c5b0d70e831ea7c868", "span_id": "b29b07a2cf7a5154", "request_id": "11fd3479794e", "method": "POST", "route": "/ask", "status": 503, "ms": 89.6}

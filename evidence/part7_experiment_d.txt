@@ -1,0 +1,10 @@
+16:54:28 Locust 30 users started (stats reset); warm-up 30s
+16:54:59 T0 docker pause k5-day14-observability-agent-1
+16:55:14 (+15s) AgentInstanceDown -> pending instance=172.18.0.7:8000 | sum(up)=1
+16:55:44 (+45s) AgentInstanceDown -> firing instance=172.18.0.7:8000 | sum(up)=1
+16:56:04 agent-side error rate (Prometheus, 1m) = 0.007255139056831923
+16:56:04 Locust error: 16 x POST /ask: HTTPError('503 Server Error: Service Unavailable for url: /ask')
+16:56:04 Locust error: 30 x POST /ask: HTTPError('504 Server Error: Gateway Time-out for url: /ask')
+16:56:04 Locust aggregated: 1671 requests, 46 failures
+16:56:04 docker unpause k5-day14-observability-agent-1 (sau đó dừng Locust thủ công bằng POST /stop)
+# kiểm tra sau unpause: agent-1 paused=false health=healthy, sum(up{job="agent"}) = 2

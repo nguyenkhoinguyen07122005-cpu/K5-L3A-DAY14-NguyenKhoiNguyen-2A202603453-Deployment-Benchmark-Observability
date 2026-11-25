@@ -1,0 +1,13 @@
+# Exercise 7.6 — thí nghiệm A+B cùng lúc: .env MOCK_ERROR_RATE=0.2, MOCK_SLOW_RATE=0.3, Locust 30 users
+# poll http://localhost:9090/api/v1/alerts mỗi 5s (scrape/evaluation_interval = 5s)
+T0 16:44:06
+16:44:18 (+12s)  LLMCostBurnRateHigh    -> firing   activeAt=2026-11-25T09:32:42.571501534Z
+16:44:28 (+22s)  AgentHighLatencyP95    -> pending  activeAt=2026-11-25T09:44:27.401817116Z
+16:44:33 (+27s)  AgentHighErrorRate     -> pending  activeAt=2026-11-25T09:44:32.401817116Z
+16:45:33 (+87s)  AgentHighErrorRate     -> firing   activeAt=2026-11-25T09:44:32.401817116Z
+16:46:28 (+143s)  AgentHighLatencyP95    -> firing   activeAt=2026-11-25T09:44:27.401817116Z
+BOTH FIRING
+
+# trạng thái lúc chụp:
+AgentHighErrorRate firing 2026-11-25T09:44:32.401817116Z value= 1.7116060961313012e-01
+AgentHighLatencyP95 firing 2026-11-25T09:44:27.401817116Z value= 1.904372197309417e+00

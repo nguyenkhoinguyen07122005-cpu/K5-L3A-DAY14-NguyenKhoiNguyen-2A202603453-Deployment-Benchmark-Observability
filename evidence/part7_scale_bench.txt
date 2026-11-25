@@ -1,0 +1,52 @@
+[16:48:30] restore config + stop web swarm
+[16:48:30] scale agent=1
+   Container k5-day14-observability-agent-1 Recreate 
+   Container k5-day14-observability-agent-2 Stopping 
+   Container k5-day14-observability-agent-1 Recreated 
+   Container k5-day14-observability-agent-2 Stopped 
+   Container k5-day14-observability-agent-2 Removing 
+   Container k5-day14-observability-agent-2 Removed 
+   Container k5-day14-observability-agent-1 Starting 
+   Container k5-day14-observability-agent-1 Started 
+k5-day14-observability-agent-1 Up 25 seconds (healthy)
+[16:48:57] locust headless -u 100 -r 10 -t 2m --csv scale_1
+           Aggregated                                                                      7674    69(0.90%) |    212       1    1737    190 |   67.90        0.80
+           Aggregated                                                                      7809    69(0.88%) |    212       1    1737    190 |   67.30        1.00
+           Aggregated                                                                      7929    69(0.87%) |    212       1    1737    190 |   66.19        0.58
+  Response time percentiles (approximated)
+           Aggregated                                                                            190    200    210    210    220    220   1700   1700   1700   1700   1700   7929
+  69                 POST /ask: HTTPError('503 Server Error: Service Unavailable for url: /ask')                         
+[16:50:58] done scale_1
+[16:50:58] scale agent=3
+   Container k5-day14-observability-agent-1 Running 
+   Container k5-day14-observability-agent-2 Running 
+   Container k5-day14-observability-agent-3 Creating 
+   Container k5-day14-observability-agent-3 Created 
+   Container k5-day14-observability-agent-3 Starting 
+   Container k5-day14-observability-agent-3 Started 
+k5-day14-observability-agent-1 Up 2 minutes (healthy)
+k5-day14-observability-agent-2 Up 2 minutes (healthy)
+k5-day14-observability-agent-3 Up 25 seconds (healthy)
+[16:51:24] locust headless -u 100 -r 10 -t 2m --csv scale_3
+           Aggregated                                                                      7674    81(1.06%) |    208       1    1745    190 |   68.40        0.50
+           Aggregated                                                                      7807    82(1.05%) |    208       1    1745    190 |   70.00        0.60
+           Aggregated                                                                      7935    83(1.05%) |    208       1    1745    190 |   66.23        0.69
+  Response time percentiles (approximated)
+           Aggregated                                                                            190    200    210    210    220    220   1700   1700   1700   1700   1700   7935
+  83                 POST /ask: HTTPError('503 Server Error: Service Unavailable for url: /ask')                         
+[16:53:26] done scale_3
+
+Name                      Length
+----                      ------
+.gitkeep                       0
+scale_1_exceptions.csv        31
+scale_1_failures.csv         173
+scale_1_stats.csv            708
+scale_1_stats_history.csv  21833
+scale_3_exceptions.csv        31
+scale_3_failures.csv         173
+scale_3_stats.csv            710
+scale_3_stats_history.csv  21629
+
+
+
