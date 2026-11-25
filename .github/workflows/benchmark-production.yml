@@ -1,0 +1,50 @@
+# Part 7 production (không cần Docker ở máy local): chạy stack observability trên runner,
+# unit test alert rules, Locust headless scale 1 vs 3 instance, tải CSV về làm bằng chứng.
+# Chạy thủ công: GitHub → Actions → benchmark-production → Run workflow.
+name: benchmark-production
+on:
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: 06-lab-complete/benchmark-observability/production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unit test alert rules (promtool)
+        run: |
+          docker run --rm -v "$PWD/prometheus:/p" --entrypoint promtool \
+            prom/prometheus:v3.16.0 test rules /p/alert_rules_test.yml
+      - name: Start stack
+        run: |
+          chmod 777 benchmark-results
+          docker compose -p k5-day14-observability up --build -d
+          sleep 20
+          docker compose -p k5-day14-observability ps
+          curl -s -i -X POST http://localhost:8080/ask -H "X-API-Key: day14-lab-key" \
+            -H "Content-Type: application/json" -d '{"question": "Trong distributed tracing, span là gì?"}'
+      - name: Locust — 1 instance
+        run: |
+          docker compose -p k5-day14-observability up -d --scale agent=1
+          sleep 20
+          docker compose -p k5-day14-observability run --rm locust -f /mnt/locust/locustfile.py --host http://nginx \
+            --headless -u 100 -r 10 -t 2m --csv /mnt/results/scale_1 || true
+      - name: Locust — 3 instances
+        run: |
+          docker compose -p k5-day14-observability up -d --scale agent=3
+          sleep 20
+          docker compose -p k5-day14-observability run --rm locust -f /mnt/locust/locustfile.py --host http://nginx \
+            --headless -u 100 -r 10 -t 2m --csv /mnt/results/scale_3 || true
+      - name: Prometheus alerts snapshot
+        if: always()
+        run: curl -s http://localhost:9090/api/v1/alerts > benchmark-results/alerts_snapshot.json || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: locust-benchmark-results
+          path: 06-lab-complete/benchmark-observability/production/benchmark-results/
+      - if: always()
+        run: docker compose -p k5-day14-observability down

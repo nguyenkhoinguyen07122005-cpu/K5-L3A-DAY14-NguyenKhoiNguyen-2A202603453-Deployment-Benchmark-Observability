@@ -1,0 +1,59 @@
+# Part 1 — develop app (anti-patterns) on :8011
+$ POST /ask?question=Hello
+HTTP 500 Internal Server Error
+
+$ GET /health (develop: không có)
+HTTP 404 {"detail":"Not Found"}
+
+# Part 4.1 — API key (04-api-gateway/develop) on :8041
+$ POST /ask (không có key)
+HTTP 401 {"detail":"Missing API key. Include header: X-API-Key: <your-key>"}
+
+$ POST /ask (sai key)
+HTTP 403 {"detail":"Invalid API key."}
+
+$ POST /ask (đúng key secret-key-123)
+HTTP 200 {"question":"Hello","answer":"Agent đang hoạt động tốt! (mock response) Hỏi thêm câu hỏi đi nhé."}
+
+# Part 4.2 — JWT (04-api-gateway/production) on :8042
+$ POST /auth/token admin/secret (theo CODE_LAB)
+HTTP 401 {"detail":"Invalid credentials"}
+
+$ POST /auth/token student/demo123
+HTTP 200 {"access_token":"eyJhbGciOi...<đã che>","token_type":
+
+$ POST /ask không token
+HTTP 401 {"detail":"Authentication required. Include: Authorization: Bearer <token>"}
+
+$ POST /ask token giả
+HTTP 403 {"detail":"Invalid token."}
+
+$ POST /ask với token
+HTTP 200 {"question":"Explain JWT","answer":"Agent đang hoạt động tốt! (mock response) Hỏi thêm câu hỏi đi nhé.","usage":{"requests_remaining":9,"budget_remaining_usd":1.6e-05}}
+
+# Part 4.3 — Rate limit: gọi liên tục 20 lần (student = 10 req/phút, đã dùng 1)
+request  1: HTTP 200 remaining=8
+request  2: HTTP 200 remaining=7
+request  3: HTTP 200 remaining=6
+request  4: HTTP 200 remaining=5
+request  5: HTTP 200 remaining=4
+request  6: HTTP 200 remaining=3
+request  7: HTTP 200 remaining=2
+request  8: HTTP 200 remaining=1
+request  9: HTTP 200 remaining=0
+request 10: HTTP 429 Retry-After=59
+request 11: HTTP 429 Retry-After=59
+request 12: HTTP 429 Retry-After=59
+request 13: HTTP 429 Retry-After=59
+request 14: HTTP 429 Retry-After=59
+request 15: HTTP 429 Retry-After=59
+request 16: HTTP 429 Retry-After=59
+request 17: HTTP 429 Retry-After=59
+request 18: HTTP 429 Retry-After=59
+request 19: HTTP 429 Retry-After=59
+request 20: HTTP 429 Retry-After=59
+
+teacher (admin, 100 req/phút): 15/15 request thành công → admin có limiter riêng
+$ GET /me/usage (student)
+HTTP 200 {"user_id":"student","date":"2026-11-25","requests":10,"input_tokens":40,"output_tokens":288,"cost_usd":0.000179,"budget_usd":1.0,"budget_remaining_usd":0.999821,"budget_used_pct":0.0}
+

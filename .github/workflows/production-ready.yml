@@ -1,0 +1,27 @@
+# Chạy script chấm ĐẦY ĐỦ (có Docker + SIGTERM) trên Linux runner của GitHub.
+# Dùng khi máy local là Windows / không có Docker: Actions → production-ready → xem log "PASS 12/12".
+name: production-ready
+on:
+  push:
+    paths: ["06-lab-complete/**", ".github/workflows/production-ready.yml"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: 06-lab-complete
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install -r requirements.txt
+      - name: Production readiness check (full, with Docker)
+        run: python check_production_ready.py | tee check_output.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: check-production-ready-output
+          path: 06-lab-complete/check_output.txt

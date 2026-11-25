@@ -1,0 +1,14 @@
+# Part 5.1 — health / ready (05-scaling-reliability/develop :8050)
+GET /health → 200 {"status":"ok","uptime_seconds":7.6,"version":"1.0.0","environment":"development","timestamp":"2026-11-25T04:29:36.285243+00:00","checks":{"memory":{"status":"ok","used_percent":81.3}}}
+GET /ready → 200 {"ready":true,"in_flight_requests":1}
+
+# Part 5.3–5.5 — stateless: 2 instance (:8051, :8052) dùng chung 1 Redis, request luân phiên
+request 1 → :8051 served_by=instance-8051 storage=redis turn=2
+request 2 → :8052 served_by=instance-8052 storage=redis turn=3
+request 3 → :8051 served_by=instance-8051 storage=redis turn=4
+request 4 → :8052 served_by=instance-8052 storage=redis turn=5
+request 5 → :8051 served_by=instance-8051 storage=redis turn=6
+
+History đọc từ instance khác: 10 messages (session 18f981cd...)
+Tắt instance :8051 rồi gọi tiếp :8052 ...
+sau khi kill :8051 → served_by=instance-8052, history còn 12 messages ✅ (state không mất)
