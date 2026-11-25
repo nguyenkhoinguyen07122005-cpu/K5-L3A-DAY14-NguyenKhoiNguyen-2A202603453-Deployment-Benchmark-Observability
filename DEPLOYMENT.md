@@ -31,7 +31,7 @@ health 200          {"status":"ok","environment":"production","uptime_seconds":1
 ready 200           {"status":"ready","redis":"ok"}          ← agent đã kết nối Render Key Value
 ask-no-key 401      {"detail":"Invalid or missing API key. Send header X-API-Key."}
 ask-wrong-key 401
-ask-with-key ⏳     (chạy lệnh 4 với AGENT_API_KEY lấy từ Render → Environment, kỳ vọng 200)
+ask-with-key 200    (X-API-Key = AGENT_API_KEY do Render sinh, chạy từ PowerShell, chỉ in mã HTTP)
 ```
 
 ### Health Check
