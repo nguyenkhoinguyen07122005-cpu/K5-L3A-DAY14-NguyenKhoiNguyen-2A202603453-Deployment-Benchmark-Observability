@@ -1,0 +1,74 @@
+# Part 2 — chạy trên GitHub Actions ubuntu-latest, Docker version 29.4.2, build 055a478
+$ docker build -f 02-docker/develop/Dockerfile -t my-agent:develop .
+sha256:2136076fdf8b568e6752d28cdb14accd872cadb19da5e32a4c26c1e8458cd415
+$ docker build -f 02-docker/production/Dockerfile -t my-agent:advanced .
+sha256:58fdcd07419b080ac4ba1e2a2dd729180d4ec497b660dfff45414a38c14aec7f
+
+$ docker images | grep my-agent
+WARNING: This output is designed for human readability. For machine-readable output, please use --format.
+my-agent:advanced                                   58fdcd07419b        240MB         57.4MB        
+my-agent:develop                                    2136076fdf8b       1.67GB          426MB        
+
+# kích thước chính xác (bytes):
+my-agent:develop 426320351
+my-agent:advanced 57408736
+
+$ docker run -d -p 8000:8000 my-agent:develop
+79474d6d1a68d5a004a2c0cd67adc82dd87924920c85b1e3157d8cff848046ae
+$ curl -i -X POST "http://localhost:8000/ask?question=What%20is%20Docker"
+HTTP/1.1 200 OK
+date: Wed, 25 Nov 2026 07:51:09 GMT
+server: uvicorn
+content-length: 103
+content-type: application/json
+
+{"answer":"Container là cách đóng gói app để chạy ở mọi nơi. Build once, run anywhere!"}
+$ curl http://localhost:8000/health
+{"status":"ok","uptime_seconds":5.9,"container":true}
+
+$ cd 02-docker/production && touch .env.local && docker compose -p k5-day14-docker up -d --build
+ Container k5-day14-docker-agent-1 Created 
+ Container k5-day14-docker-nginx-1 Creating 
+ Container k5-day14-docker-nginx-1 Created 
+ Container k5-day14-docker-redis-1 Starting 
+ Container k5-day14-docker-qdrant-1 Starting 
+ Container k5-day14-docker-redis-1 Started 
+ Container k5-day14-docker-qdrant-1 Started 
+ Container k5-day14-docker-qdrant-1 Waiting 
+ Container k5-day14-docker-redis-1 Waiting 
+ Container k5-day14-docker-qdrant-1 Healthy 
+ Container k5-day14-docker-redis-1 Healthy 
+ Container k5-day14-docker-agent-1 Starting 
+ Container k5-day14-docker-agent-1 Started 
+ Container k5-day14-docker-nginx-1 Starting 
+ Container k5-day14-docker-nginx-1 Started 
+$ docker compose -p k5-day14-docker ps
+NAME                       IMAGE                   COMMAND                  SERVICE   CREATED          STATUS                    PORTS
+k5-day14-docker-agent-1    k5-day14-docker-agent   "uvicorn main:app --…"   agent     36 seconds ago   Up 25 seconds (healthy)   8000/tcp
+k5-day14-docker-nginx-1    nginx:alpine            "/docker-entrypoint.…"   nginx     36 seconds ago   Up 25 seconds             0.0.0.0:80->80/tcp, [::]:80->80/tcp, 0.0.0.0:443->443/tcp, [::]:443->443/tcp
+k5-day14-docker-qdrant-1   qdrant/qdrant:v1.9.0    "./entrypoint.sh"        qdrant    36 seconds ago   Up 36 seconds (healthy)   6333-6334/tcp
+k5-day14-docker-redis-1    redis:7-alpine          "docker-entrypoint.s…"   redis     36 seconds ago   Up 36 seconds (healthy)   6379/tcp
+$ curl -i http://localhost/health
+HTTP/1.1 200 OK
+Server: nginx
+Date: Wed, 25 Nov 2026 07:51:51 GMT
+Content-Type: application/json
+Content-Length: 96
+Connection: keep-alive
+X-Frame-Options: DENY
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+
+{"status":"ok","uptime_seconds":24.1,"version":"2.0.0","timestamp":"2026-11-25T07:51:51.937542"}
+$ curl -i -X POST http://localhost/ask -H "Content-Type: application/json" -d {"question": "Explain microservices"}
+HTTP/1.1 200 OK
+Server: nginx
+Date: Wed, 25 Nov 2026 07:51:52 GMT
+Content-Type: application/json
+Content-Length: 103
+Connection: keep-alive
+X-Frame-Options: DENY
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+
+{"answer":"Tôi là AI agent được deploy lên cloud. Câu hỏi của bạn đã được nhận."}

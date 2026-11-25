@@ -1,0 +1,89 @@
+# Part 5 — GitHub Actions ubuntu-latest
+$ docker compose -p k5-day14-scaling up -d --build --scale agent=3
+ Container k5-day14-scaling-redis-1 Waiting 
+ Container k5-day14-scaling-redis-1 Healthy 
+ Container k5-day14-scaling-agent-2 Starting 
+ Container k5-day14-scaling-agent-2 Started 
+ Container k5-day14-scaling-agent-1 Starting 
+ Container k5-day14-scaling-agent-1 Started 
+ Container k5-day14-scaling-agent-3 Starting 
+ Container k5-day14-scaling-agent-3 Started 
+ Container k5-day14-scaling-nginx-1 Starting 
+ Container k5-day14-scaling-nginx-1 Started 
+$ docker compose -p k5-day14-scaling ps
+NAME                       IMAGE                    COMMAND                  SERVICE   CREATED          STATUS                    PORTS
+k5-day14-scaling-agent-1   k5-day14-scaling-agent   "python -m uvicorn a…"   agent     36 seconds ago   Up 25 seconds (healthy)   8000/tcp
+k5-day14-scaling-agent-2   k5-day14-scaling-agent   "python -m uvicorn a…"   agent     36 seconds ago   Up 25 seconds (healthy)   8000/tcp
+k5-day14-scaling-agent-3   k5-day14-scaling-agent   "python -m uvicorn a…"   agent     36 seconds ago   Up 25 seconds (healthy)   8000/tcp
+k5-day14-scaling-nginx-1   nginx:alpine             "/docker-entrypoint.…"   nginx     36 seconds ago   Up 25 seconds             0.0.0.0:8080->80/tcp, [::]:8080->80/tcp
+k5-day14-scaling-redis-1   redis:7-alpine           "docker-entrypoint.s…"   redis     37 seconds ago   Up 36 seconds (healthy)   6379/tcp
+
+$ python test_stateless.py
+============================================================
+Stateless Scaling Demo
+============================================================
+
+Session ID: 78678d81-45c3-41dc-baa8-9f44f56f1dd2
+
+Request 1: [instance-a560a7]
+  Q: What is Docker?
+  A: Container là cách đóng gói app để chạy ở mọi nơi. Build once, run anywhere!...
+
+Request 2: [instance-d69e46]
+  Q: Why do we need containers?
+  A: Đây là câu trả lời từ AI agent (mock). Trong production, đây sẽ là response từ O...
+
+Request 3: [instance-19e4bc]
+  Q: What is Kubernetes?
+  A: Đây là câu trả lời từ AI agent (mock). Trong production, đây sẽ là response từ O...
+
+Request 4: [instance-a560a7]
+  Q: How does load balancing work?
+  A: Tôi là AI agent được deploy lên cloud. Câu hỏi của bạn đã được nhận....
+
+Request 5: [instance-d69e46]
+  Q: What is Redis used for?
+  A: Tôi là AI agent được deploy lên cloud. Câu hỏi của bạn đã được nhận....
+
+------------------------------------------------------------
+Total requests: 5
+Instances used: {'instance-19e4bc', 'instance-a560a7', 'instance-d69e46'}
+✅ All requests served despite different instances!
+
+--- Conversation History ---
+Total messages: 10
+  [user]: What is Docker?...
+  [assistant]: Container là cách đóng gói app để chạy ở mọi nơi. Build once...
+  [user]: Why do we need containers?...
+  [assistant]: Đây là câu trả lời từ AI agent (mock). Trong production, đây...
+  [user]: What is Kubernetes?...
+  [assistant]: Đây là câu trả lời từ AI agent (mock). Trong production, đây...
+  [user]: How does load balancing work?...
+  [assistant]: Tôi là AI agent được deploy lên cloud. Câu hỏi của bạn đã đư...
+  [user]: What is Redis used for?...
+  [assistant]: Tôi là AI agent được deploy lên cloud. Câu hỏi của bạn đã đư...
+
+✅ Session history preserved across all instances via Redis!
+
+# 10 request /health qua Nginx — phân tán giữa các instance:
+instance-a560a7
+instance-d69e46
+instance-19e4bc
+instance-a560a7
+instance-d69e46
+instance-19e4bc
+instance-a560a7
+instance-d69e46
+instance-19e4bc
+instance-a560a7
+
+# Kill 1 instance rồi gọi tiếp (Exercise 5.5 gốc):
+killed 1 agent container
+  [user]: What is Kubernetes?...
+  [assistant]: Agent đang hoạt động tốt! (mock response) Hỏi thêm câu hỏi đ...
+  [user]: How does load balancing work?...
+  [assistant]: Agent đang hoạt động tốt! (mock response) Hỏi thêm câu hỏi đ...
+  [user]: What is Redis used for?...
+  [assistant]: Tôi là AI agent được deploy lên cloud. Câu hỏi của bạn đã đư...
+
+✅ Session history preserved across all instances via Redis!
