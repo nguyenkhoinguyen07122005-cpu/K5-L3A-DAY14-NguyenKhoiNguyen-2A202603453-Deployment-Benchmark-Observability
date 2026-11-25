@@ -148,8 +148,9 @@ Server: nginx
 
 Theo CHECKPOINTS CP6, lớp K5 deploy luôn **agent Part 6** (`06-lab-complete/`, dùng `railway.toml` / `render.yaml` của bài), không deploy app mẫu.
 
-- URL: ⏳ `https://<your-agent>.onrender.com` (chi tiết trong [`DEPLOYMENT.md`](DEPLOYMENT.md))
-- Kết quả 4 lệnh tự kiểm CP6: ⏳ `/health` 200 · `/ready` 200 · `/ask` không key 401 · `/ask` có key 200
+- Nền tảng: **Render** (Blueprint `06-lab-complete/render.yaml`, web service Docker gói Free + Render Key Value). Railway hết free tier nên dùng Render; RUBRIC cho phép chọn một trong hai.
+- URL: `https://production-ai-agent-jt3z.onrender.com` (chi tiết trong [`DEPLOYMENT.md`](DEPLOYMENT.md))
+- Kết quả 4 lệnh tự kiểm CP6: `/health` **200** · `/ready` **200** (`"redis":"ok"`) · `/ask` không key **401** · `/ask` có key ⏳ 200
 - Screenshot: `screenshots/dashboard.png`, `screenshots/running.png`, `screenshots/test.png`
 
 ### Exercise 3.2: `render.yaml` vs `railway.toml`

@@ -3,7 +3,7 @@
 > Service deploy là **agent Part 6** trong thư mục `06-lab-complete/`.
 
 ## Public URL
-https://<your-agent>.onrender.com
+https://production-ai-agent-jt3z.onrender.com
 
 ## Platform
 Render, gói Free. Deploy bằng Blueprint `06-lab-complete/render.yaml`: web service Docker (`rootDir: 06-lab-complete`) + Render Key Value (Redis-compatible), cả hai cùng region, nối qua mạng nội bộ.
@@ -14,7 +14,7 @@ Render, gói Free. Deploy bằng Blueprint `06-lab-complete/render.yaml`: web se
 
 ### Tự kiểm CP6 (chỉ in mã HTTP, chụp ảnh không lộ key)
 ```bash
-BASE=https://<your-agent>.onrender.com
+BASE=https://production-ai-agent-jt3z.onrender.com
 curl -sS -o /dev/null -w '%{http_code}
 ' "$BASE/health"     # 200
 curl -sS -o /dev/null -w '%{http_code}
@@ -24,30 +24,38 @@ curl -sS -o /dev/null -w '%{http_code}
 curl -sS -o /dev/null -w '%{http_code}
 ' -X POST "$BASE/ask" -H 'Content-Type: application/json' -H "X-API-Key: $AGENT_API_KEY" -d '{"question":"Hello"}'   # 200
 ```
-Kết quả: ⏳ `200 / 200 / 401 / 200`
+Kết quả đo ngày 2026-11-25:
+
+```text
+health 200          {"status":"ok","environment":"production","uptime_seconds":119.3,"pid":28}
+ready 200           {"status":"ready","redis":"ok"}          ← agent đã kết nối Render Key Value
+ask-no-key 401      {"detail":"Invalid or missing API key. Send header X-API-Key."}
+ask-wrong-key 401
+ask-with-key ⏳     (chạy lệnh 4 với AGENT_API_KEY lấy từ Render → Environment, kỳ vọng 200)
+```
 
 ### Health Check
 ```bash
-curl https://<your-agent>.onrender.com/health
+curl https://production-ai-agent-jt3z.onrender.com/health
 # Expected: {"status": "ok", ...}
 ```
 
 ### Readiness (Redis)
 ```bash
-curl https://<your-agent>.onrender.com/ready
+curl https://production-ai-agent-jt3z.onrender.com/ready
 # Expected: {"status": "ready", "redis": "ok"}
 ```
 
 ### Authentication required
 ```bash
-curl -X POST https://<your-agent>.onrender.com/ask \
+curl -X POST https://production-ai-agent-jt3z.onrender.com/ask \
   -H "Content-Type: application/json" -d '{"question": "Hello"}'
 # Expected: 401
 ```
 
 ### API Test (with authentication)
 ```bash
-curl -X POST https://<your-agent>.onrender.com/ask \
+curl -X POST https://production-ai-agent-jt3z.onrender.com/ask \
   -H "X-API-Key: YOUR_KEY" \
   -H "Content-Type: application/json" \
   -d '{"user_id": "test", "question": "Hello"}'
@@ -57,7 +65,7 @@ curl -X POST https://<your-agent>.onrender.com/ask \
 ### Rate limiting (10 req/phút)
 ```bash
 for i in $(seq 1 15); do
-  curl -s -o /dev/null -w "%{http_code}\n" -X POST https://<your-agent>.onrender.com/ask \
+  curl -s -o /dev/null -w "%{http_code}\n" -X POST https://production-ai-agent-jt3z.onrender.com/ask \
     -H "X-API-Key: YOUR_KEY" -H "Content-Type: application/json" \
     -d '{"user_id":"test","question":"test"}'
 done
@@ -67,7 +75,7 @@ done
 ### Grader against public URL
 ```bash
 cd 06-lab-complete
-python check_production_ready.py --public-url https://<your-agent>.onrender.com
+python check_production_ready.py --public-url https://production-ai-agent-jt3z.onrender.com
 ```
 
 ## Environment Variables Set
