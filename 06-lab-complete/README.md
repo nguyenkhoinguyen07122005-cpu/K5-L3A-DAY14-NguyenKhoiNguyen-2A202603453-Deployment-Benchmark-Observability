@@ -1,5 +1,25 @@
 # Part 6 — Final Project: Production-ready AI Agent
 
+> **Bài làm đã hoàn thành.** Tài liệu nộp: [MISSION_ANSWERS.md](../MISSION_ANSWERS.md) · [DEPLOYMENT.md](../DEPLOYMENT.md) · [BENCHMARK_REPORT.md](../BENCHMARK_REPORT.md) (ở gốc repo) · hướng dẫn nộp: [HUONG_DAN_NOP_BAI.md](../HUONG_DAN_NOP_BAI.md)
+>
+> **Setup nhanh**
+> ```bash
+> pip install -r requirements.txt
+> cp .env.example .env                      # điền AGENT_API_KEY
+> docker compose up --build                 # agent :8000 + redis
+> curl http://localhost:8000/health
+> curl -X POST http://localhost:8000/ask -H "X-API-Key: <key>" -H "Content-Type: application/json" >      -d '{"user_id": "u1", "question": "What is deployment?"}'
+> python check_production_ready.py          # chấm đầy đủ (cần Docker)
+> ```
+> Scale 3 instance sau Nginx: `docker compose -f docker-compose.yml -f docker-compose.scale.yml up --build --scale agent=3` → http://localhost:8080
+>
+> | Endpoint | Mô tả |
+> |---|---|
+> | `GET /health` | Liveness, luôn 200 khi process sống |
+> | `GET /ready` | Readiness, 503 khi Redis không kết nối được |
+> | `POST /ask` | `X-API-Key` → rate limit (Redis, 429) → cost guard (Redis, 402) → LLM |
+> | `GET /history/{user_id}` | Conversation history lưu trong Redis (cần `X-API-Key`) |
+
 Bạn tự xây một AI agent đủ chuẩn production từ **bản khung** trong thư mục này, kết hợp mọi thứ đã học ở Part 1–5.
 Mọi file đều đã có sẵn, phần việc của bạn nằm ở các chỗ ghi `TODO`. Bản khung chạy được nhưng **chưa đạt tiêu chí nào**.
 
@@ -14,18 +34,18 @@ python check_production_ready.py
 
 ## Checklist Deliverable
 
-- [ ] Dockerfile (multi-stage, < 500 MB)
-- [ ] docker-compose.yml (agent + redis)
-- [ ] .dockerignore
-- [ ] Health check endpoint (`GET /health`)
-- [ ] Readiness endpoint (`GET /ready`)
-- [ ] API Key authentication
-- [ ] Rate limiting
-- [ ] Cost guard
-- [ ] Config từ environment variables
-- [ ] Structured logging
-- [ ] Graceful shutdown
-- [ ] Public URL ready (Railway / Render config)
+- [x] Dockerfile (multi-stage, < 500 MB)
+- [x] docker-compose.yml (agent + redis)
+- [x] .dockerignore
+- [x] Health check endpoint (`GET /health`)
+- [x] Readiness endpoint (`GET /ready`)
+- [x] API Key authentication
+- [x] Rate limiting
+- [x] Cost guard
+- [x] Config từ environment variables
+- [x] Structured logging
+- [x] Graceful shutdown
+- [x] Public URL ready (Railway / Render config)
 
 ---
 

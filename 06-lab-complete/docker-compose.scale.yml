@@ -1,0 +1,18 @@
+# Mở rộng: Nginx load balancer phía trước N instance agent (stateless, dùng chung Redis)
+#   docker compose -f docker-compose.yml -f docker-compose.scale.yml up --build --scale agent=3
+#   curl http://localhost:8080/health
+services:
+  agent:
+    ports: !reset []          # bỏ map 8000:8000 để scale được nhiều instance
+    expose:
+      - "8000"
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - agent
+    restart: unless-stopped
